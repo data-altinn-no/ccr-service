@@ -1,8 +1,8 @@
 using Azure.Core.Serialization;
 using Azure.Identity;
-using Dan.Plugin.CcrService.Config;
-using Dan.Plugin.CcrService.Handlers;
-using Dan.Plugin.CcrService.Services;
+using Dan.CcrService.Config;
+using Dan.CcrService.Handlers;
+using Dan.CcrService.Services;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

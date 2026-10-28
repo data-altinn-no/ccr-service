@@ -1,6 +1,6 @@
 using Xunit;
 
-namespace Dan.Plugin.CcrService.Test
+namespace Dan.CcrService.Test
 {
     public class UnitTest1
     {

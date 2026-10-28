@@ -4,7 +4,7 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 
-namespace Dan.Plugin.CcrService.Functions;
+namespace Dan.CcrService.Functions;
 
 public class CcrWrapper(Services.IEntityRegistryService entityRegistryService)
 {

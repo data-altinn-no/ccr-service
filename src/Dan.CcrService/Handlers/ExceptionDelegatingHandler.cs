@@ -1,9 +1,9 @@
-using Dan.Plugin.CcrService.Extensions;
+using Dan.CcrService.Extensions;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Dan.Plugin.CcrService.Handlers;
+namespace Dan.CcrService.Handlers;
 class ExceptionDelegatingHandler : DelegatingHandler
 {
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)

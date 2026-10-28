@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 
-namespace Dan.Plugin.CcrService.Extensions;
+namespace Dan.CcrService.Extensions;
 
 public static class HttpExtensions
 {

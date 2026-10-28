@@ -1,7 +1,7 @@
 using AsyncKeyedLock;
 using Dan.Common.Extensions;
 using Dan.Common.Models;
-using Dan.Plugin.CcrService.Config;
+using Dan.CcrService.Config;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -12,7 +12,7 @@ using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace Dan.Plugin.CcrService.Services;
+namespace Dan.CcrService.Services;
 
 /// <summary>
 /// API Service for fetching entity registries

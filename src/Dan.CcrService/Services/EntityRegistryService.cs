@@ -1,5 +1,5 @@
 using Dan.Common.Models;
-using Dan.Plugin.CcrService.Config;
+using Dan.CcrService.Config;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
@@ -7,7 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace Dan.Plugin.CcrService.Services;
+namespace Dan.CcrService.Services;
 
 /// <summary>
 /// Service for handling entity registry
