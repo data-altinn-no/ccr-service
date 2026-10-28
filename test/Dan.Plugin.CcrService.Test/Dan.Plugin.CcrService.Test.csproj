@@ -21,7 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Dan.Plugin.DATASOURCENAME\Dan.Plugin.DATASOURCENAME.csproj" />
+    <ProjectReference Include="..\..\src\Dan.Plugin.DATASOURCENAME\Dan.Plugin.CcrService.csproj" />
   </ItemGroup>
 
 </Project>
