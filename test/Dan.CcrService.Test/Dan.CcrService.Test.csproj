@@ -21,7 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Dan.CcrSergvice\Dan.CcrService.csproj" />
+    <ProjectReference Include="..\..\src\Dan.CcrService\Dan.CcrService.csproj" />
   </ItemGroup>
 
 </Project>

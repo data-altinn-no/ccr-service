@@ -33,6 +33,7 @@ var host = new HostBuilder()
         services.Configure<Settings>(context.Configuration);
         services.AddTransient<IEntityRegistryService, EntityRegistryService>();
         services.AddTransient<IEntityRegistryApiClientService, EntityRegistryApiClientService>();
+        services.AddTransient<ExceptionDelegatingHandler>();
 
         services.AddHttpClient("EntityRegistryClient", client =>
         {

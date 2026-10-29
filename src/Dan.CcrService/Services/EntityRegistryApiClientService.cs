@@ -1,7 +1,8 @@
 using AsyncKeyedLock;
+using Dan.CcrService.Config;
+using Dan.CcrService.Extensions;
 using Dan.Common.Extensions;
 using Dan.Common.Models;
-using Dan.CcrService.Config;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -123,9 +124,11 @@ public partial class EntityRegistryApiClientService(
                 return cacheHit;
             }
 
-            var options = new DistributedCacheEntryOptions()
-                .SetAbsoluteExpiration(TimeSpan.FromHours(12));
             var result = await InternalGetUpstreamEntityRegistryUnitsAsync(registryApiUri);
+            var ttl = result is null ? TimeSpan.FromMinutes(5) : TimeSpan.FromHours(12);
+            var options = new DistributedCacheEntryOptions()
+                .SetAbsoluteExpiration(ttl);
+            result ??= [];
             await distributedCache.SetValueAsync(cacheKey, result, options);
             return result;
         }
@@ -138,9 +141,10 @@ public partial class EntityRegistryApiClientService(
 
     private async Task<EntityRegistryUnit?> InternalGetUpstreamEntityRegistryUnitAsync(Uri registryApiUri)
     {
-        var client = clientFactory.CreateClient("entityRegistryClient");
+        var client = clientFactory.CreateClient("EntityRegistryClient");
         var request = new HttpRequestMessage(HttpMethod.Get, registryApiUri);
         request.Headers.TryAddWithoutValidation("Accept", "application/json");
+        request.SetAllowedErrorCodes(System.Net.HttpStatusCode.NotFound);
 
         var response = await client.SendAsync(request);
         if (!response.IsSuccessStatusCode)
@@ -170,13 +174,15 @@ public partial class EntityRegistryApiClientService(
 
     private async Task<List<EntityRegistryUnit>> InternalGetUpstreamEntityRegistryUnitsAsync(Uri registryApiUri)
     {
-        var client = clientFactory.CreateClient("entityRegistryClient");
+        var client = clientFactory.CreateClient("EntityRegistryClient");
         var nextUri = registryApiUri;
         var subUnits = new List<EntityRegistryUnit>();
         do
         {
             var request = new HttpRequestMessage(HttpMethod.Get, nextUri);
             request.Headers.TryAddWithoutValidation("Accept", "application/json");
+            request.SetAllowedErrorCodes(System.Net.HttpStatusCode.NotFound);
+
             var response = await client.SendAsync(request);
             if (!response.IsSuccessStatusCode)
             {
@@ -188,7 +194,7 @@ public partial class EntityRegistryApiClientService(
                 {
                     logger.LogError("Unexcpected error occured on ccr lookup, code {code}, url: {url}", response.StatusCode.ToString(), registryApiUri.ToString());
                 }
-                return [];
+                return null;
             }
 
             var responseString = await response.Content.ReadAsStringAsync();

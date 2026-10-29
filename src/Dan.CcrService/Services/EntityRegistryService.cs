@@ -183,6 +183,18 @@ public class EntityRegistryService(
     /// </summary>
     public async Task<List<EntityRegistryUnit>> GetSubunits(string organizationNumber)
     {
+        if (string.IsNullOrWhiteSpace(organizationNumber))
+        {
+            logger.LogWarning("Missing organization number on CCR lookup");
+            return null;
+        }
+        organizationNumber = organizationNumber.Trim();
+        if (IsSyntheticOrganizationNumber(organizationNumber) && !AllowTestCcrLookup)
+        {
+            logger.LogWarning("Synthetic organization number attempted lookup in disallowed environment: {organizationNumber}", organizationNumber);
+            return null;
+        }
+
         var cacheKey = "SubunitList_" + organizationNumber;
         if (SubunitListCache.TryGetValue(cacheKey, out var cacheEntry) && cacheEntry.expiresAt > DateTime.UtcNow)
         {
