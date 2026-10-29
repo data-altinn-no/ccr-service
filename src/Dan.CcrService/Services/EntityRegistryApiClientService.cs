@@ -146,19 +146,29 @@ public partial class EntityRegistryApiClientService(
         request.Headers.TryAddWithoutValidation("Accept", "application/json");
         request.SetAllowedErrorCodes(System.Net.HttpStatusCode.NotFound);
 
-        var response = await client.SendAsync(request);
-        if (!response.IsSuccessStatusCode)
+        HttpResponseMessage response;
+        try
         {
-            if(response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
             {
-                logger.LogWarning("Organization not found on ccr lookup, code 404, url: {url}", registryApiUri.ToString());
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    logger.LogWarning("Organization not found on ccr lookup, code 404, url: {url}", registryApiUri.ToString());
+                }
+                else
+                {
+                    logger.LogError("Unexcpected error occured on ccr lookup, code {code}, url: {url}", response.StatusCode.ToString(), registryApiUri.ToString());
+                }
+                return null;
             }
-            else
-            {
-                logger.LogError("Unexcpected error occured on ccr lookup, code {code}, url: {url}", response.StatusCode.ToString(), registryApiUri.ToString());
-            }
+        }
+        catch (Exception e)
+        {
+            logger.LogError("Exception thrown on ccr lookup on url {url}, type: {exceptiontype}, message: {message}", registryApiUri, e.GetType().Name, e.Message);
             return null;
         }
+        
 
         var responseString = await response.Content.ReadAsStringAsync();
         try
@@ -183,17 +193,26 @@ public partial class EntityRegistryApiClientService(
             request.Headers.TryAddWithoutValidation("Accept", "application/json");
             request.SetAllowedErrorCodes(System.Net.HttpStatusCode.NotFound);
 
-            var response = await client.SendAsync(request);
-            if (!response.IsSuccessStatusCode)
+            HttpResponseMessage response;
+            try
             {
-                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                response = await client.SendAsync(request);
+                if (!response.IsSuccessStatusCode)
                 {
-                    logger.LogWarning("Organizations not found on ccr lookup, code 404, url: {url}", registryApiUri.ToString());
+                    if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                    {
+                        logger.LogWarning("Organizations not found on ccr lookup, code 404, url: {url}", registryApiUri.ToString());
+                    }
+                    else
+                    {
+                        logger.LogError("Unexcpected error occured on ccr lookup, code {code}, url: {url}", response.StatusCode.ToString(), registryApiUri.ToString());
+                    }
+                    return null;
                 }
-                else
-                {
-                    logger.LogError("Unexcpected error occured on ccr lookup, code {code}, url: {url}", response.StatusCode.ToString(), registryApiUri.ToString());
-                }
+            }
+            catch (Exception e)
+            {
+                logger.LogError("Exception thrown on ccr lookup on url {url}, type: {exceptiontype}, message: {message}", registryApiUri, e.GetType().Name, e.Message);
                 return null;
             }
 

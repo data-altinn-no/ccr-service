@@ -181,7 +181,7 @@ public class EntityRegistryService(
     /// <summary>
     /// Get full entity registry unit
     /// </summary>
-    public async Task<List<EntityRegistryUnit>> GetSubunits(string organizationNumber)
+    public async Task<List<EntityRegistryUnit>?> GetSubunits(string organizationNumber)
     {
         if (string.IsNullOrWhiteSpace(organizationNumber))
         {
@@ -233,6 +233,7 @@ public class EntityRegistryService(
 
 
         var subunits = await GetSubunits(orgNumber);
+        subunits ??= [];
         var subunitHierarchies = new List<EntityRegistryUnitHierarchy>();
         if (currentDepth < maxDepth)
         {

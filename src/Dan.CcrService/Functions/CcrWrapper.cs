@@ -36,7 +36,7 @@ public class CcrWrapper(Services.IEntityRegistryService entityRegistryService)
     {
         var units = await entityRegistryService.GetSubunits(orgNumber);
         var response = req.CreateResponse(HttpStatusCode.OK);
-        await response.WriteAsJsonAsync(units);
+        await response.WriteAsJsonAsync(units ?? []);
 
         return response;
     }
