@@ -1,0 +1,16 @@
+{
+    "version": "2.0",
+    "telemetryMode": "OpenTelemetry",
+    "logging": {
+        "logLevel": {
+            "default": "Debug",
+            "Microsoft": "Warning"
+        },
+        "OpenTelemetry": {
+            "logLevel": {
+                "default": "Debug",
+                "Microsoft": "Warning"
+            }
+        }
+    }
+}
