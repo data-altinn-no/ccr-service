@@ -1,14 +1,17 @@
 using Azure.Core.Serialization;
 using Azure.Identity;
+using Azure.Monitor.OpenTelemetry.Exporter;
 using Dan.CcrService.Config;
 using Dan.CcrService.Handlers;
 using Dan.CcrService.Services;
-using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.OpenTelemetry;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using OpenTelemetry.Trace;
 using StackExchange.Redis;
 using System;
 
