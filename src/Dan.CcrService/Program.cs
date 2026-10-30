@@ -3,6 +3,7 @@ using Azure.Identity;
 using Dan.CcrService.Config;
 using Dan.CcrService.Handlers;
 using Dan.CcrService.Services;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,6 +22,14 @@ var host = new HostBuilder()
                 NullValueHandling = NullValueHandling.Ignore
             });
     })
+    .ConfigureLogging(logging =>
+    {
+        logging.AddOpenTelemetry(options =>
+        {
+            options.IncludeFormattedMessage = true;
+            options.IncludeScopes = true;
+        });
+    })
     .ConfigureAppConfiguration((config) =>
     {
         config.AddEnvironmentVariables();
@@ -30,6 +39,25 @@ var host = new HostBuilder()
     })
     .ConfigureServices((context, services) =>
     {
+        services.AddLogging();
+        // UseAzureMonitorExporter() throws at startup if no connection string is configured,
+        // so it's gated here to keep plugins working locally without one.
+        var appInsightsConnectionString = context.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"];
+        var instrumentationKey = context.Configuration["APPINSIGHTS_INSTRUMENTATIONKEY"];
+
+        if (string.IsNullOrWhiteSpace(appInsightsConnectionString) && !string.IsNullOrWhiteSpace(instrumentationKey))
+        {
+            appInsightsConnectionString = $"InstrumentationKey={instrumentationKey}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(appInsightsConnectionString))
+        {
+            services.AddOpenTelemetry()
+                .WithTracing(tracing => tracing.AddHttpClientInstrumentation())
+                .UseAzureMonitorExporter(options => options.ConnectionString = appInsightsConnectionString)
+                .UseFunctionsWorkerDefaults();
+        }
+
         services.Configure<Settings>(context.Configuration);
         services.AddTransient<IEntityRegistryService, EntityRegistryService>();
         services.AddTransient<IEntityRegistryApiClientService, EntityRegistryApiClientService>();
