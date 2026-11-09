@@ -154,7 +154,9 @@ public partial class EntityRegistryApiClientService(
             {
                 if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                 {
-                    logger.LogWarning("Organization not found on ccr lookup, code 404, url: {url}", registryApiUri.ToString());
+                    // Not really critical to log, 404 is expected to find often here due to suborg lookup
+                    // TODO: Consider moving or changing how this type of logging is handled so we only log on 404 if we know it's a main unit
+                    logger.LogDebug("Organization not found on ccr lookup, code 404, url: {url}", registryApiUri.ToString());
                 }
                 else
                 {
