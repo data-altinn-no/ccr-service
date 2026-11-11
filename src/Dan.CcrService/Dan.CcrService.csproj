@@ -8,7 +8,7 @@
     <Content Include="local.settings.json" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Azure.Monitor.OpenTelemetry.Exporter" Version="1.9.0" /> 
+    <PackageReference Include="Azure.Monitor.OpenTelemetry.Exporter" Version="1.10.0" /> 
     <PackageReference Include="Dan.Common" Version="1.12.0" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.OpenTelemetry" Version="1.2.0" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="2.1.0" OutputItemType="Analyzer" />
@@ -17,7 +17,7 @@
     <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="10.0.14" />
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.14" />
     <PackageReference Include="Newtonsoft.Json.Schema" Version="4.0.2" />
-    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.18.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.20.2" />
   </ItemGroup>
   <ItemGroup>
     <None Update="host.json">
