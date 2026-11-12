@@ -6,6 +6,7 @@ using Dan.Common.Models;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -34,7 +35,8 @@ public interface IEntityRegistryApiClientService
 public partial class EntityRegistryApiClientService(
     ILoggerFactory loggerFactory,
     IHttpClientFactory clientFactory,
-    IDistributedCache distributedCache)
+    IDistributedCache distributedCache,
+    IConnectionMultiplexer redis)
     : IEntityRegistryApiClientService
 {
     public const string EntityRegistryCachePolicy = "EntityRegistryCachePolicy";
@@ -118,10 +120,13 @@ public partial class EntityRegistryApiClientService(
         // To avoid unecessary requests for the same unit, use a keyed lock to make sure we hit the cache.
         using (await asyncKeyedLock.LockAsync(cacheKey))
         {
-            var cacheHit = await distributedCache.GetValueAsync<List<EntityRegistryUnit>>(cacheKey);
-            if (cacheHit is not null)
+            var db = redis.GetDatabase();
+
+            var keyExists = await db.KeyExistsAsync(cacheKey);
+            if (keyExists)
             {
-                return cacheHit;
+                // If key exists and value is still null, that means it's a known null i.e we got a null response (404) from server
+                return await distributedCache.GetValueAsync<List<EntityRegistryUnit>>(cacheKey);
             }
 
             var result = await InternalGetUpstreamEntityRegistryUnitsAsync(registryApiUri);
