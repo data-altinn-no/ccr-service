@@ -73,6 +73,7 @@ var host = new HostBuilder()
         services.AddHttpClient("EntityRegistryClient", client =>
         {
             client.DefaultRequestHeaders.Add("Accept", "application/json");
+            client.Timeout = TimeSpan.FromSeconds(5);
         })
         .AddHttpMessageHandler<ExceptionDelegatingHandler>()
         .AddPerHostResilience(TimeSpan.FromSeconds(5));
@@ -97,7 +98,7 @@ var host = new HostBuilder()
             {
                 option.Configuration = Settings.RedisCacheConnectionString;
             });
-            services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(Settings.RedisCacheConnectionString));
+            services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(Settings.RedisCacheConnectionString));
         }
         else
         {

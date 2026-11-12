@@ -165,18 +165,19 @@ public partial class EntityRegistryApiClientService(
                     // Not really critical to log, 404 is expected to find often here due to suborg lookup
                     // TODO: Consider moving or changing how this type of logging is handled so we only log on 404 if we know it's a main unit
                     logger.LogDebug("Organization not found on ccr lookup, code 404, url: {url}", registryApiUri.ToString());
+                    return null;
                 }
                 else
                 {
                     logger.LogError("Unexcpected error occured on ccr lookup, code {code}, url: {url}", response.StatusCode.ToString(), registryApiUri.ToString());
+                    throw new HttpRequestException($"CCR lookup returned {(int)response.StatusCode}.");
                 }
-                return null;
             }
         }
         catch (Exception e)
         {
             logger.LogError("Exception thrown on ccr lookup on url {url}, type: {exceptiontype}, message: {message}", registryApiUri, e.GetType().Name, e.Message);
-            return null;
+            throw;
         }
         
 
@@ -212,18 +213,19 @@ public partial class EntityRegistryApiClientService(
                     if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                     {
                         logger.LogWarning("Organizations not found on ccr lookup, code 404, url: {url}", registryApiUri.ToString());
+                        return null;
                     }
                     else
                     {
                         logger.LogError("Unexcpected error occured on ccr lookup, code {code}, url: {url}", response.StatusCode.ToString(), registryApiUri.ToString());
+                        throw new HttpRequestException($"CCR lookup returned {(int)response.StatusCode}.");
                     }
-                    return null;
                 }
             }
             catch (Exception e)
             {
                 logger.LogError("Exception thrown on ccr lookup on url {url}, type: {exceptiontype}, message: {message}", registryApiUri, e.GetType().Name, e.Message);
-                return null;
+                throw;
             }
 
             var responseString = await response.Content.ReadAsStringAsync();
