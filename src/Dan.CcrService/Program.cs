@@ -73,10 +73,9 @@ var host = new HostBuilder()
         services.AddHttpClient("EntityRegistryClient", client =>
         {
             client.DefaultRequestHeaders.Add("Accept", "application/json");
-            client.Timeout = TimeSpan.FromSeconds(5);
         })
         .AddHttpMessageHandler<ExceptionDelegatingHandler>()
-        .AddPerHostResilience(TimeSpan.FromSeconds(settings.SafeHttpClientTimeout));
+        .AddPerHostResilience(TimeSpan.FromSeconds(5));
 
         DefaultAzureCredentialOptions options = new()
         {
