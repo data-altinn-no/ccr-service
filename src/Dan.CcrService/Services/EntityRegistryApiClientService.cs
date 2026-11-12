@@ -67,11 +67,17 @@ public partial class EntityRegistryApiClientService(
         // To avoid unecessary requests for the same unit, use a keyed lock to make sure we hit the cache.
         using (await asyncKeyedLock.LockAsync(cacheKey))
         {
-            var cacheHit = await distributedCache.GetValueAsync<EntityRegistryUnit>(cacheKey);
-            if (cacheHit is not null)
+            var db = redis.GetDatabase();
+            var expireTime = await db.KeyExpireTimeAsync(cacheKey);
+            var safetyBufferTime = DateTime.UtcNow.AddMinutes(1);
+
+            // If key does not exist, then expiretime is null. Then add a minute of safetybuffer time just in case since fetching
+            // key info is an additional round trip
+            if (expireTime != null && expireTime.Value > safetyBufferTime)
             {
-                return cacheHit;
+                return await distributedCache.GetValueAsync<EntityRegistryUnit>(cacheKey);
             }
+            
             var result = await InternalGetUpstreamEntityRegistryUnitAsync(registryApiUri);
             var ttl = result is null ? TimeSpan.FromMinutes(5) : TimeSpan.FromHours(12);
             var options = new DistributedCacheEntryOptions().SetAbsoluteExpiration(ttl);
@@ -120,13 +126,10 @@ public partial class EntityRegistryApiClientService(
         // To avoid unecessary requests for the same unit, use a keyed lock to make sure we hit the cache.
         using (await asyncKeyedLock.LockAsync(cacheKey))
         {
-            var db = redis.GetDatabase();
-
-            var keyExists = await db.KeyExistsAsync(cacheKey);
-            if (keyExists)
+            var cacheEntry = await distributedCache.GetValueAsync<List<EntityRegistryUnit>>(cacheKey);
+            if (cacheEntry is not null)
             {
-                // If key exists and value is still null, that means it's a known null i.e we got a null response (404) from server
-                return await distributedCache.GetValueAsync<List<EntityRegistryUnit>>(cacheKey);
+                return cacheEntry;
             }
 
             var result = await InternalGetUpstreamEntityRegistryUnitsAsync(registryApiUri);
