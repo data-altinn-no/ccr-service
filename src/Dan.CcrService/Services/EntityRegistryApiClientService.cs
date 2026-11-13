@@ -6,6 +6,7 @@ using Dan.Common.Models;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -34,7 +35,8 @@ public interface IEntityRegistryApiClientService
 public partial class EntityRegistryApiClientService(
     ILoggerFactory loggerFactory,
     IHttpClientFactory clientFactory,
-    IDistributedCache distributedCache)
+    IDistributedCache distributedCache,
+    IConnectionMultiplexer redis)
     : IEntityRegistryApiClientService
 {
     public const string EntityRegistryCachePolicy = "EntityRegistryCachePolicy";
@@ -65,11 +67,17 @@ public partial class EntityRegistryApiClientService(
         // To avoid unecessary requests for the same unit, use a keyed lock to make sure we hit the cache.
         using (await asyncKeyedLock.LockAsync(cacheKey))
         {
-            var cacheHit = await distributedCache.GetValueAsync<EntityRegistryUnit>(cacheKey);
-            if (cacheHit is not null)
+            var db = redis.GetDatabase();
+            var expireTime = await db.KeyExpireTimeAsync(cacheKey);
+            var safetyBufferTime = DateTime.UtcNow.AddMinutes(1);
+
+            // If key does not exist, then expiretime is null. Then add a minute of safetybuffer time just in case since fetching
+            // key info is an additional round trip
+            if (expireTime != null && expireTime.Value > safetyBufferTime)
             {
-                return cacheHit;
+                return await distributedCache.GetValueAsync<EntityRegistryUnit>(cacheKey);
             }
+            
             var result = await InternalGetUpstreamEntityRegistryUnitAsync(registryApiUri);
             var ttl = result is null ? TimeSpan.FromMinutes(5) : TimeSpan.FromHours(12);
             var options = new DistributedCacheEntryOptions().SetAbsoluteExpiration(ttl);
@@ -118,10 +126,10 @@ public partial class EntityRegistryApiClientService(
         // To avoid unecessary requests for the same unit, use a keyed lock to make sure we hit the cache.
         using (await asyncKeyedLock.LockAsync(cacheKey))
         {
-            var cacheHit = await distributedCache.GetValueAsync<List<EntityRegistryUnit>>(cacheKey);
-            if (cacheHit is not null)
+            var cacheEntry = await distributedCache.GetValueAsync<List<EntityRegistryUnit>>(cacheKey);
+            if (cacheEntry is not null)
             {
-                return cacheHit;
+                return cacheEntry;
             }
 
             var result = await InternalGetUpstreamEntityRegistryUnitsAsync(registryApiUri);
@@ -157,18 +165,19 @@ public partial class EntityRegistryApiClientService(
                     // Not really critical to log, 404 is expected to find often here due to suborg lookup
                     // TODO: Consider moving or changing how this type of logging is handled so we only log on 404 if we know it's a main unit
                     logger.LogDebug("Organization not found on ccr lookup, code 404, url: {url}", registryApiUri.ToString());
+                    return null;
                 }
                 else
                 {
                     logger.LogError("Unexcpected error occured on ccr lookup, code {code}, url: {url}", response.StatusCode.ToString(), registryApiUri.ToString());
+                    throw new HttpRequestException($"CCR lookup returned {(int)response.StatusCode}.");
                 }
-                return null;
             }
         }
         catch (Exception e)
         {
             logger.LogError("Exception thrown on ccr lookup on url {url}, type: {exceptiontype}, message: {message}", registryApiUri, e.GetType().Name, e.Message);
-            return null;
+            throw;
         }
         
 
@@ -204,18 +213,19 @@ public partial class EntityRegistryApiClientService(
                     if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                     {
                         logger.LogWarning("Organizations not found on ccr lookup, code 404, url: {url}", registryApiUri.ToString());
+                        return null;
                     }
                     else
                     {
                         logger.LogError("Unexcpected error occured on ccr lookup, code {code}, url: {url}", response.StatusCode.ToString(), registryApiUri.ToString());
+                        throw new HttpRequestException($"CCR lookup returned {(int)response.StatusCode}.");
                     }
-                    return null;
                 }
             }
             catch (Exception e)
             {
                 logger.LogError("Exception thrown on ccr lookup on url {url}, type: {exceptiontype}, message: {message}", registryApiUri, e.GetType().Name, e.Message);
-                return null;
+                throw;
             }
 
             var responseString = await response.Content.ReadAsStringAsync();

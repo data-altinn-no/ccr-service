@@ -1,7 +1,9 @@
+using Azure.Core;
 using Azure.Core.Serialization;
 using Azure.Identity;
 using Azure.Monitor.OpenTelemetry.Exporter;
 using Dan.CcrService.Config;
+using Dan.CcrService.Extensions;
 using Dan.CcrService.Handlers;
 using Dan.CcrService.Services;
 using Microsoft.Azure.Functions.Worker.OpenTelemetry;
@@ -14,6 +16,7 @@ using Newtonsoft.Json;
 using OpenTelemetry.Trace;
 using StackExchange.Redis;
 using System;
+using System.Threading.Tasks;
 
 var host = new HostBuilder()
     .ConfigureFunctionsWorkerDefaults(_ => { }, options =>
@@ -62,6 +65,7 @@ var host = new HostBuilder()
         }
 
         services.Configure<Settings>(context.Configuration);
+        var settings = context.Configuration.Get<Settings>();
         services.AddTransient<IEntityRegistryService, EntityRegistryService>();
         services.AddTransient<IEntityRegistryApiClientService, EntityRegistryApiClientService>();
         services.AddTransient<ExceptionDelegatingHandler>();
@@ -71,7 +75,8 @@ var host = new HostBuilder()
             client.DefaultRequestHeaders.Add("Accept", "application/json");
             client.Timeout = TimeSpan.FromSeconds(5);
         })
-        .AddHttpMessageHandler<ExceptionDelegatingHandler>();
+        .AddHttpMessageHandler<ExceptionDelegatingHandler>()
+        .AddPerHostResilience(TimeSpan.FromSeconds(5));
 
         DefaultAzureCredentialOptions options = new()
         {
@@ -84,7 +89,8 @@ var host = new HostBuilder()
         };
         DefaultAzureCredential credentials = new(options);
         services.AddSingleton(credentials);
-        // In case of still using access key (or local redis), 
+        // In case of still using access key (or local redis),
+        TokenCredential credential = new DefaultAzureCredential();
         if (Settings.RedisCacheConnectionString.Contains("password=") ||
             Settings.RedisCacheConnectionString.Contains("127.0.0.1"))
         {
@@ -92,23 +98,24 @@ var host = new HostBuilder()
             {
                 option.Configuration = Settings.RedisCacheConnectionString;
             });
+            services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(Settings.RedisCacheConnectionString));
         }
         else
         {
+            var configurationOptions = ConfigurationOptions
+                .Parse(Settings.RedisCacheConnectionString)
+                .ConfigureForAzureWithTokenCredentialAsync(credential)
+                .GetAwaiter().GetResult();
+
+            IConnectionMultiplexer connectionMultiplexer = ConnectionMultiplexer.Connect(configurationOptions);
+            services.AddSingleton(connectionMultiplexer);
             services.AddStackExchangeRedisCache(option =>
             {
-                option.ConnectionMultiplexerFactory = async () =>
-                {
-                    var configurationOptions = await ConfigurationOptions
-                        .Parse(Settings.RedisCacheConnectionString)
-                        .ConfigureForAzureWithTokenCredentialAsync(credentials);
-
-                    var connectionMultiplexer = await ConnectionMultiplexer.ConnectAsync(configurationOptions);
-
-                    return connectionMultiplexer;
-                };
+                option.ConnectionMultiplexerFactory = () => Task.FromResult(connectionMultiplexer);
             });
         }
+
+        services.AddMemoryCache();
 
 
         var sp = services.BuildServiceProvider();

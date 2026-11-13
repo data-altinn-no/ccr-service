@@ -1,8 +1,9 @@
-using Dan.Common.Models;
+using AsyncKeyedLock;
 using Dan.CcrService.Config;
+using Dan.Common.Models;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -77,6 +78,7 @@ public interface IEntityRegistryService
 
 public class EntityRegistryService(
     IEntityRegistryApiClientService entityRegistryApiClientService,
+    IMemoryCache memoryCache,
     ILogger<EntityRegistryService> logger) : IEntityRegistryService
 {
     /// <summary>
@@ -95,10 +97,9 @@ public class EntityRegistryService(
     // A list of various organization numbers that the code heuristics fail to recognize as public sector
     private static readonly string[] PublicSectorOrganizations = ["971032146" /*KS-KOMMUNESEKTORENS ORGANISASJON*/];
 
-    private static readonly ConcurrentDictionary<string, (DateTime expiresAt, EntityRegistryUnit? unit)> EntityRegistryUnitsCache = new();
-    private static readonly ConcurrentDictionary<string, (DateTime expiresAt, List<EntityRegistryUnit> list)> SubunitListCache = new();
-
     private readonly TimeSpan cacheEntryTtl = TimeSpan.FromSeconds(600);
+
+    private readonly AsyncKeyedLocker<string> asyncKeyedLock = new(o => o.PoolSize = 10);
 
     private enum UnitType
     {
@@ -196,17 +197,27 @@ public class EntityRegistryService(
         }
 
         var cacheKey = "SubunitList_" + organizationNumber;
-        if (SubunitListCache.TryGetValue(cacheKey, out var cacheEntry) && cacheEntry.expiresAt > DateTime.UtcNow)
+        if (memoryCache.TryGetValue<List<EntityRegistryUnit>>(cacheKey, out var cacheEntry))
         {
-            return cacheEntry.list;
+            return cacheEntry;
         }
 
-        var url = GetLookupUrlForSubunitsOfAUnit(organizationNumber);
+        using (await asyncKeyedLock.LockAsync(cacheKey))
+        {
+            // Check if another thread already updated cache
+            if (memoryCache.TryGetValue<List<EntityRegistryUnit>>(cacheKey, out var newCacheEntry))
+            {
+                return newCacheEntry;
+            }
 
-        var entry = (DateTime.UtcNow.Add(cacheEntryTtl), await GetListFromClientService(url));
-        SubunitListCache.AddOrUpdate(cacheKey, entry, (_, _) => entry);
+            var url = GetLookupUrlForSubunitsOfAUnit(organizationNumber);
 
-        return entry.Item2;
+            return await memoryCache.GetOrCreateAsync(cacheKey, async entry =>
+            {
+                entry.SetAbsoluteExpiration(cacheEntryTtl);
+                return await GetListFromClientService(url);
+            });
+        }
     }
 
     /// <summary>
@@ -292,9 +303,9 @@ public class EntityRegistryService(
     private async Task<EntityRegistryUnit?> InternalGet(string organizationNumber, UnitType unitType)
     {
         var cacheKey = Enum.GetName(typeof(UnitType), unitType) + "_" + organizationNumber;
-        if (EntityRegistryUnitsCache.TryGetValue(cacheKey, out var cacheEntry) && cacheEntry.expiresAt > DateTime.UtcNow)
+        if (memoryCache.TryGetValue<EntityRegistryUnit>(cacheKey, out var cacheEntry))
         {
-            return cacheEntry.unit;
+            return cacheEntry;
         }
 
         var urlToFetch = unitType switch
@@ -304,10 +315,22 @@ public class EntityRegistryService(
             _ => throw new InvalidOperationException()
         };
 
-        var entry = (DateTime.UtcNow.Add(cacheEntryTtl), await GetFromClientService(urlToFetch));
-        EntityRegistryUnitsCache.AddOrUpdate(cacheKey, entry, (_, _) => entry);
+        using (await asyncKeyedLock.LockAsync(cacheKey))
+        {
+            // Check if another thread already updated cache
+            if (memoryCache.TryGetValue<EntityRegistryUnit>(cacheKey, out var newCacheEntry))
+            {
+                return newCacheEntry;
+            }
 
-        return entry.Item2;
+            var url = GetLookupUrlForSubunitsOfAUnit(organizationNumber);
+
+            return await memoryCache.GetOrCreateAsync(cacheKey, async entry =>
+            {
+                entry.SetAbsoluteExpiration(cacheEntryTtl);
+                return await GetFromClientService(urlToFetch);
+            });
+        }
     }
 
     private async Task<EntityRegistryUnit?> GetFromClientService(Uri url)

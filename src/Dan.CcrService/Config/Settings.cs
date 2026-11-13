@@ -9,7 +9,7 @@ public class Settings
 {
     public int DefaultCircuitBreakerOpenCircuitTimeSeconds { get; init; }
     public int DefaultCircuitBreakerFailureBeforeTripping { get; init; }
-    public int SafeHttpClientTimeout { get; init; }
+    public int SafeHttpClientTimeout { get; init; } = 30;
 
     /// <summary>
     /// If the program is running in development environment
